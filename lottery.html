@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>超级大乐透 · 模拟开奖直播</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  :root{
+    --primary:#FF6B6B;--primary-light:#FFE0E0;--primary-dark:#E84545;
+    --secondary:#4ECDC4;--secondary-light:#D4F5F2;--secondary-dark:#2EAD9E;
+    --accent:#FFE66D;--accent-light:#FFF8DC;
+    --bg:#F0F4F8;--card:#FFFFFF;--text:#2D3436;--text-light:#636E72;--text-lighter:#B2BEC3;
+    --shadow:0 8px 32px rgba(0,0,0,0.08);--shadow-sm:0 2px 8px rgba(0,0,0,0.06);
+    --radius:16px;--radius-sm:12px;--radius-xs:8px;
+  }
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif;
+    background:var(--bg);color:var(--text);min-height:100vh;
+    display:flex;flex-direction:column;align-items:center;
+    padding:20px;overflow-x:hidden;
+  }
+  .header{
+    text-align:center;margin-bottom:24px;
+    animation:fadeInDown .6s ease;
+  }
+  .header h1{
+    font-size:28px;font-weight:700;
+    background:linear-gradient(135deg,var(--primary),var(--secondary));
+    -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+    background-clip:text;margin-bottom:4px;
+  }
+  .header .subtitle{font-size:13px;color:var(--text-light);letter-spacing:2px}
+  .live-badge{
+    display:inline-flex;align-items:center;gap:6px;
+    background:var(--primary);color:#fff;padding:4px 14px;
+    border-radius:20px;font-size:12px;font-weight:600;
+    margin-top:8px;animation:pulse 2s infinite;
+  }
+  .live-dot{width:6px;height:6px;background:#fff;border-radius:50%;animation:blink 1s infinite}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+  @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+  @keyframes fadeInDown{from{opacity:0;transform:translateY(-20px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes fadeInUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes scaleIn{from{opacity:0;transform:scale(.5)}to{opacity:1;transform:scale(1)}}
+  @keyframes bounceIn{0%{opacity:0;transform:scale(.3)}50%{transform:scale(1.1)}70%{transform:scale(.95)}100%{opacity:1;transform:scale(1)}}
+  @keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+  @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+  @keyframes confetti-fall{0%{transform:translateY(-10px) rotate(0deg);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}
+
+  .main-card{
+    background:var(--card);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:32px;width:100%;max-width:680px;
+    animation:fadeInUp .6s ease .1s both;
+  }
+  .section-label{
+    font-size:13px;font-weight:600;color:var(--text-light);
+    text-transform:uppercase;letter-spacing:3px;margin-bottom:16px;
+    display:flex;align-items:center;gap:8px;
+  }
+  .section-label::after{
+    content:'';flex:1;height:1px;
+    background:linear-gradient(to right,var(--text-lighter),transparent);
+  }
+
+  .ball-row{
+    display:flex;gap:12px;justify-content:center;flex-wrap:wrap;
+    margin-bottom:28px;min-height:80px;align-items:center;
+  }
+  .ball{
+    width:64px;height:64px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    font-size:22px;font-weight:700;color:#fff;
+    position:relative;cursor:default;
+    transition:transform .3s ease;
+  }
+  .ball:hover{transform:scale(1.1)}
+  .ball.front{
+    background:linear-gradient(135deg,#FF6B6B,#EE5A24);
+    box-shadow:0 4px 15px rgba(238,90,36,.35);
+  }
+  .ball.back{
+    background:linear-gradient(135deg,#4ECDC4,#0ABDE3);
+    box-shadow:0 4px 15px rgba(10,189,227,.35);
+  }
+  .ball.rolling{
+    animation:float .4s ease-in-out infinite;
+  }
+  .ball.rolling .ball-number{
+    animation:shimmer .3s linear infinite;
+    background:linear-gradient(90deg,rgba(255,255,255,.8),rgba(255,255,255,.4),rgba(255,255,255,.8));
+    background-size:200% 100%;-webkit-background-clip:text;
+    -webkit-text-fill-color:transparent;background-clip:text;
+  }
+  .ball.revealed{animation:bounceIn .5s ease}
+  .ball.waiting{
+    background:var(--bg);color:var(--text-lighter);
+    box-shadow:var(--shadow-sm);font-size:18px;
+  }
+  .ball .ball-inner{
+    width:52px;height:52px;border-radius:50%;
+    background:rgba(255,255,255,.2);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .ball .ball-number{position:relative;z-index:1}
+
+  .divider{
+    height:1px;margin:4px 0 24px;
+    background:linear-gradient(to right,transparent,var(--text-lighter),transparent);
+  }
+
+  .btn-area{text-align:center;margin-top:8px}
+  .btn{
+    display:inline-flex;align-items:center;gap:8px;
+    padding:14px 48px;border:none;border-radius:50px;
+    font-size:16px;font-weight:600;cursor:pointer;
+    transition:all .3s ease;position:relative;overflow:hidden;
+  }
+  .btn-start{
+    background:linear-gradient(135deg,var(--primary),var(--primary-dark));
+    color:#fff;box-shadow:0 4px 20px rgba(255,107,107,.4);
+  }
+  .btn-start:hover{transform:translateY(-2px);box-shadow:0 6px 25px rgba(255,107,107,.5)}
+  .btn-start:active{transform:translateY(0)}
+  .btn-start:disabled{
+    background:var(--text-lighter);box-shadow:none;cursor:not-allowed;transform:none;
+  }
+  .btn .icon{font-size:18px}
+
+  .info-bar{
+    display:flex;justify-content:center;gap:24px;margin-top:20px;
+    font-size:12px;color:var(--text-lighter);
+    animation:fadeInUp .6s ease .3s both;
+  }
+  .info-bar span{display:flex;align-items:center;gap:4px}
+
+  .history-section{
+    width:100%;max-width:680px;margin-top:20px;
+    animation:fadeInUp .6s ease .4s both;
+  }
+  .history-card{
+    background:var(--card);border-radius:var(--radius);
+    box-shadow:var(--shadow-sm);padding:20px 24px;
+  }
+  .history-item{
+    display:flex;align-items:center;gap:8px;
+    padding:10px 0;border-bottom:1px solid #f0f0f0;
+    font-size:13px;
+  }
+  .history-item:last-child{border-bottom:none}
+  .history-period{
+    font-weight:600;color:var(--text-light);min-width:80px;font-size:12px;
+  }
+  .history-balls{display:flex;gap:6px;flex-wrap:wrap}
+  .history-ball{
+    width:30px;height:30px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    font-size:11px;font-weight:600;color:#fff;
+  }
+  .history-ball.front{background:linear-gradient(135deg,#FF6B6B,#EE5A24)}
+  .history-ball.back{background:linear-gradient(135deg,#4ECDC4,#0ABDE3)}
+  .history-plus{color:var(--text-lighter);font-weight:700;font-size:14px}
+  .no-history{text-align:center;color:var(--text-lighter);padding:16px;font-size:13px}
+
+  .confetti-container{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:999;overflow:hidden}
+  .confetti{
+    position:absolute;width:8px;height:8px;border-radius:2px;
+    top:-10px;animation:confetti-fall 3s ease-in forwards;
+  }
+
+  .stage-label{
+    text-align:center;font-size:14px;color:var(--text-light);
+    margin-bottom:12px;min-height:22px;
+    transition:opacity .3s ease;
+  }
+  .stage-label.active{color:var(--primary);font-weight:600}
+
+  @media(max-width:480px){
+    .ball{width:52px;height:52px;font-size:18px}
+    .ball .ball-inner{width:42px;height:42px}
+    .main-card{padding:20px 16px}
+    .header h1{font-size:22px}
+    .btn{padding:12px 36px;font-size:14px}
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>超级大乐透</h1>
+  <div class="subtitle">模拟开奖直播</div>
+  <div class="live-badge"><span class="live-dot"></span>模拟直播中</div>
+</div>
+
+<div class="main-card">
+  <div class="section-label">前区号码</div>
+  <div class="stage-label" id="frontLabel">等待开奖</div>
+  <div class="ball-row" id="frontBalls"></div>
+
+  <div class="divider"></div>
+
+  <div class="section-label">后区号码</div>
+  <div class="stage-label" id="backLabel">等待开奖</div>
+  <div class="ball-row" id="backBalls"></div>
+
+  <div class="btn-area">
+    <button class="btn btn-start" id="startBtn" onclick="startLottery()">
+      <span class="icon">&#9654;</span>
+      <span id="btnText">开始开奖</span>
+    </button>
+  </div>
+</div>
+
+<div class="info-bar">
+  <span>&#9679; 前区 01~35 选5个</span>
+  <span>&#9679; 后区 01~12 选2个</span>
+  <span>&#9679; 每注 2 元</span>
+</div>
+
+<div class="history-section">
+  <div class="history-card">
+    <div class="section-label">历史开奖</div>
+    <div id="historyList"><div class="no-history">暂无开奖记录，点击上方按钮开始</div></div>
+  </div>
+</div>
+
+<div class="confetti-container" id="confettiContainer"></div>
+
+<script>
+const FRONT_COUNT = 5, FRONT_MAX = 35;
+const BACK_COUNT = 2, BACK_MAX = 12;
+let isRunning = false;
+let history = [];
+let periodNum = 0;
+
+function pad(n) { return String(n).padStart(2, '0'); }
+
+function generateNumbers(max, count) {
+  const pool = Array.from({length: max}, (_, i) => i + 1);
+  const result = [];
+  for (let i = 0; i < count; i++) {
+    const idx = Math.floor(Math.random() * pool.length);
+    result.push(pool.splice(idx, 1)[0]);
+  }
+  return result.sort((a, b) => a - b);
+}
+
+function createBall(type) {
+  const ball = document.createElement('div');
+  ball.className = `ball ${type} waiting`;
+  ball.innerHTML = '<span class="ball-inner"><span class="ball-number">?</span></span>';
+  return ball;
+}
+
+function initBalls() {
+  const frontRow = document.getElementById('frontBalls');
+  const backRow = document.getElementById('backBalls');
+  frontRow.innerHTML = '';
+  backRow.innerHTML = '';
+  for (let i = 0; i < FRONT_COUNT; i++) frontRow.appendChild(createBall('front'));
+  for (let i = 0; i < BACK_COUNT; i++) backRow.appendChild(createBall('back'));
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function setBallState(ball, state, number) {
+  ball.className = `ball ${ball.classList.contains('back') ? 'back' : 'front'} ${state}`;
+  if (number !== undefined) {
+    ball.querySelector('.ball-number').textContent = pad(number);
+  }
+}
+
+async function rollBall(ball, finalNumber, type) {
+  return new Promise(resolve => {
+    setBallState(ball, 'rolling');
+    let count = 0;
+    const max = 15 + Math.floor(Math.random() * 10);
+    const interval = setInterval(() => {
+      const rand = Math.floor(Math.random() * (type === 'front' ? FRONT_MAX : BACK_MAX)) + 1;
+      ball.querySelector('.ball-number').textContent = pad(rand);
+      count++;
+      if (count >= max) {
+        clearInterval(interval);
+        setBallState(ball, 'revealed', finalNumber);
+        resolve();
+      }
+    }, 50 + count * 8);
+  });
+}
+
+function showConfetti() {
+  const container = document.getElementById('confettiContainer');
+  const colors = ['#FF6B6B','#4ECDC4','#FFE66D','#A29BFE','#FD79A8','#00CEC9','#FDCB6E'];
+  for (let i = 0; i < 60; i++) {
+    const confetti = document.createElement('div');
+    confetti.className = 'confetti';
+    confetti.style.left = Math.random() * 100 + '%';
+    confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
+    confetti.style.animationDelay = Math.random() * 1.5 + 's';
+    confetti.style.animationDuration = (2 + Math.random() * 2) + 's';
+    confetti.style.width = (4 + Math.random() * 8) + 'px';
+    confetti.style.height = (4 + Math.random() * 8) + 'px';
+    container.appendChild(confetti);
+  }
+  setTimeout(() => { container.innerHTML = ''; }, 4000);
+}
+
+function addHistory(frontNums, backNums) {
+  periodNum++;
+  const date = new Date();
+  const period = `${date.getFullYear()}${pad(date.getMonth()+1)}${pad(date.getDate())} ${pad(periodNum).padStart(3,'0')}期`;
+  history.unshift({period, front: frontNums, back: backNums});
+  if (history.length > 10) history.pop();
+  renderHistory();
+}
+
+function renderHistory() {
+  const list = document.getElementById('historyList');
+  if (history.length === 0) {
+    list.innerHTML = '<div class="no-history">暂无开奖记录，点击上方按钮开始</div>';
+    return;
+  }
+  list.innerHTML = history.map(h => {
+    const frontBalls = h.front.map(n => `<span class="history-ball front">${pad(n)}</span>`).join('');
+    const backBalls = h.back.map(n => `<span class="history-ball back">${pad(n)}</span>`).join('');
+    return `<div class="history-item">
+      <span class="history-period">${h.period}</span>
+      <div class="history-balls">${frontBalls}<span class="history-plus">+</span>${backBalls}</div>
+    </div>`;
+  }).join('');
+}
+
+async function startLottery() {
+  if (isRunning) return;
+  isRunning = true;
+  const btn = document.getElementById('startBtn');
+  const btnText = document.getElementById('btnText');
+  btn.disabled = true;
+  btnText.textContent = '开奖中...';
+
+  const frontNums = generateNumbers(FRONT_MAX, FRONT_COUNT);
+  const backNums = generateNumbers(BACK_MAX, BACK_COUNT);
+
+  initBalls();
+
+  const frontBalls = document.getElementById('frontBalls').children;
+  const backBalls = document.getElementById('backBalls').children;
+  const frontLabel = document.getElementById('frontLabel');
+  const backLabel = document.getElementById('backLabel');
+
+  // 前区开奖
+  frontLabel.textContent = '正在摇出前区号码...';
+  frontLabel.className = 'stage-label active';
+  await sleep(500);
+  for (let i = 0; i < FRONT_COUNT; i++) {
+    await rollBall(frontBalls[i], frontNums[i], 'front');
+    await sleep(300);
+  }
+  frontLabel.textContent = `前区号码：${frontNums.map(pad).join(' ')}`;
+  frontLabel.className = 'stage-label';
+
+  await sleep(600);
+
+  // 后区开奖
+  backLabel.textContent = '正在摇出后区号码...';
+  backLabel.className = 'stage-label active';
+  await sleep(500);
+  for (let i = 0; i < BACK_COUNT; i++) {
+    await rollBall(backBalls[i], backNums[i], 'back');
+    await sleep(300);
+  }
+  backLabel.textContent = `后区号码：${backNums.map(pad).join(' ')}`;
+  backLabel.className = 'stage-label';
+
+  showConfetti();
+  addHistory(frontNums, backNums);
+
+  btn.disabled = false;
+  btnText.textContent = '重新开奖';
+  isRunning = false;
+}
+
+initBalls();
+</script>
+</body>
+</html>
